@@ -243,6 +243,7 @@ const ENDINGS={
   explode:{t:'폭발 퇴사',stamp:'당일\n퇴사'},
   shadow:{t:'당신의 그림자',stamp:'세습\n완료'},
   terminate:{t:'조기 종료',stamp:'수습\n중단'},
+  myquit:{t:'사수의 퇴사',stamp:'사직\n(사수)'},
   coup:{t:'하극상',stamp:'인사\n발령'}
 };
 const END_TEXT={
@@ -254,6 +255,7 @@ const END_TEXT={
   explode:'금요일 오후 4시, 그가 일어섰다.\n그가 한 말은 여기 옮길 수 없지만, 사무실 전체가 들었다.\n부장의 얼굴이 실시간으로 상하는 것을 당신은 보았다.\n솔직히 조금 통쾌했다는 사실은, 무덤까지 가져가기로 한다.',
   shadow:'그는 살아남았다. 아주 잘.\n어제, 새로 온 인턴에게 그가 말하는 것을 들었다.\n"그건 원래 그런 거야. 토 달지 말고 일단 해."\n당신의 억양이었다. 쉼표 위치까지 같았다.\n당신은 그를 키웠다. 정확히 당신만큼.',
   terminate:'당신은 평가서의 마지막 칸에 체크했다. "수습 계속 진행을 권고하지 않음."\n인사팀은 의외로 빠르게 움직였다. 금요일, 그의 자리가 정리되었다.\n마지막 날 그가 정중히 인사했다. "그동안 감사했습니다."\n무엇이 감사한지는 서로 묻지 않았다.\n\n다음 주, 새 신입이 온다.\n관찰하고, 평가하고, 결정하는 것. 그것이 당신의 일이다.',
+  myquit:'사직서를 내던 날, 이상하게 가장 마음에 걸린 것은 부장이 아니라 신입이었다.\n"…선배님, 그만두세요?" 그가 물었고, 당신은 처음으로 이 회사에서 완전히 솔직해졌다.\n"어. 나도 여기가 처음이라. 힘들더라."\n\n마지막 날, 그가 엘리베이터까지 따라 나왔다.\n당신이 12주 동안 그에게 가르친 것 중 가장 큰 것은,\n어쩌면 떠나는 법일지도 모른다.',
   coup:'수습 종료 조직개편 공지가 떴다.\n그의 이름 옆 직급이 당신 위 칸에 있었다. 부장 직속.\n그는 복도에서 당신에게 정중하게 목례했다.\n당신은 훌륭한 사수였다.\n당신을 밟고 올라가는 법까지 가르쳤으니까.',
   coup_dirt:'그는 퇴사했다. 아주 깔끔하게, 규정대로.\n그리고 다음 주, 당신은 감사실의 호출을 받았다.\n테이블 위에 놓인 문건에는 당신의 말들이 날짜별로 정리되어 있었다.\n\n그는 좋은 후배였다.\n당신이 한 모든 말을 기억할 만큼.'
 };
@@ -460,6 +462,14 @@ const EVENTS=[
    rx:'"어, 스토리 보셨구나…" 그가 머쓱해했다.\n해시태그로 보낸 조난 신호에 구조가 온 건 처음이라고, 그의 표정이 말했다.'},
   {l:'"부장님 보시면 어쩌려고. 내리는 게 좋지 않을까?"',fx:{m:-5,t:-5,q:5},h:true,
    rx:'"…네. 지울게요." 스토리는 사라졌다.\n사진과 함께, 다른 무언가도 같이 지워진 것 같았다.'}
+ ]},
+{id:'ePress',w:[99,99],txt:'부장이 당신을 회의실로 불렀다. 문이 닫혔다.\n"요즘 신입 관리가 그것밖에 안 되나? 자네 요즘 평이 왜 이런지 알아?"\n유리벽 너머로 사무실이 평소처럼 돌아가고 있었다. 평소처럼 보이도록, 모두가 노력하고 있었다.',
+ ch:[
+  {l:'버틴다 — "죄송합니다. 더 신경 쓰겠습니다"',fx:{r:6},
+   rx:'회의실을 나오며 목 뒤가 뻐근했다.\n견딘다는 것은 대체로, 몸 어딘가가 대신 아파주는 일이다.'},
+  {l:'신입 탓을 한다 — "신입이 아직 적응을 못 해서…"',fx:{r:8,t:-12,m:-8,q:8},h:true,
+   rx:'말이 입 밖으로 나온 순간부터 회의실이 조금 조용해졌다.\n부장은 만족했고, 당신은 어딘가가 가난해졌다.\n그리고 회의실 유리벽은, 방음이 완벽하지 않다.'},
+  {l:'사직서를 낸다 — 여기까지다',myquit:true,fx:{},rx:''}
  ]},
 {id:'eMid',w:[6,8],txt:'인사팀 메일: "수습 중간평가 입력 요청 (기한: 금요일)"\n항목 마지막 줄에 이렇게 적혀 있다.\n"수습 계속 진행 권고 여부 — 사수 의견은 결정에 큰 비중으로 반영됩니다."\n커서가 깜빡인다. 이것이 당신의 일이다.',
  ch:[
@@ -782,6 +792,7 @@ function weekBody(){
   // 월요일 이벤트 선택
   let ev=null;
   if(G.pendingStage>0){ ev={stage:G.pendingStage}; }
+  else if(G.st.r<=35&&!G.usedEvents.includes('ePress')){ ev=EVENTS.find(e=>e.id==='ePress'); }
   else if(G.week>=6&&!G.usedEvents.includes('eMid')){ ev=EVENTS.find(e=>e.id==='eMid'); }
   else if(G.type==='ambition'&&G.collecting&&!G.usedEvents.includes('e11')&&G.week>=4){ ev=EVENTS.find(e=>e.id==='e11'); }
   else{
@@ -888,6 +899,7 @@ function askChoose(v){
 function chooseEvent(i){
   const c=G.cur.ch[i];
   if(c.terminate){endGame('terminate');return;}
+  if(c.myquit){endGame('myquit');return;}
   G.peekedEvent=!G.cur.bossPeek;
   applyFx(c.fx);
   if(c.tm&&c.tm[G.type])applyFx(c.tm[G.type]);
@@ -1032,6 +1044,7 @@ function endWeek(){
   const oDrift=1.5+(s.w>60?1.5:0)+(s.m<45?(45-s.m)*0.1:0);
   G.gauge+=dq; s.o=Math.min(100,s.o+oDrift); s.w=Math.min(100,s.w+1.5); clampAll();
   if(G.type==='ambition'&&s.t<38)G.collecting=true;
+  if(s.r<=15){endGame('myquit','더는 버틸 이유를 찾지 못한 아침이 왔다.\n알람보다 먼저 눈이 떠졌고, 결심은 이미 되어 있었다.');return;}
   if(s.o>=88){quitEnding('burnout');return;}
   if(G.gauge>=100){quitEnding(null);return;}
   if(G.gauge>=82&&G.stageDone<3)G.pendingStage=3;
