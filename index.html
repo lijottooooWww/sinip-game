@@ -735,7 +735,7 @@ function showTitle(){
       <div class="stampgrid">${Object.keys(NB_ENDINGS).map(k=>SAVE.nbEndings.includes(k)?'<div class="slot got">'+NB_ENDINGS[k].t+'</div>':'<div class="slot">미달성</div>').join('')}</div></div>`:''}
     ${SAVE.stories.length?`<div class="stampboard"><div class="lbl">📮 접수된 사연 — ${SAVE.stories.length}건 (다음 업데이트의 재료)</div>
       <div class="storylist">${SAVE.stories.slice(-3).reverse().map(s=>'<div class="st"><div class="meta">'+esc(s.ts)+' · '+(s.mode==='newbie'?'신입 모드':'사수 모드')+'</div>'+esc(s.text)+'</div>').join('')}</div>
-      <button class="btn ghostbtn" id="copyStories">사연 전체 복사 (업데이트 요청용)</button></div>`:''}
+      <button class="btn ghostbtn" id="copyStories">사연 전체 복사 (백업용 — 접수 시 자동 전송됩니다)</button></div>`:''}
     ${allDone?`<div class="meta-tease"><h3>🎉 전 엔딩 달성 — 인사팀에서 공문이 왔습니다</h3>
       <ul><li>🧬 혼합형 신입 — 성격 2개가 섞여 신호가 교란된다</li>
       <li>🏢 국장/대표 모드 — 팀 단위 관리</li></ul>
@@ -1164,9 +1164,10 @@ function endGame(key,pre,dirt){
 }
 
 /* ============================== 사연 접수 ============================== */
+const STORY_FORM='https://docs.google.com/forms/d/e/1FAIpQLSevlOXDeTTKySfGJ0HhhFpCwglxkbHcz7BQGPImhstjv65saA/formResponse';
 function storyBoxHtml(){
   return `<div class="storybox"><h3>📮 당신의 이야기를 접수합니다</h3>
-    <p class="subtle">플레이하다 떠오른 '실제 회사에서 겪은 일'을 남겨주세요. 다음 업데이트의 이벤트가 될 수 있습니다.</p>
+    <p class="subtle">플레이하다 떠오른 '실제 회사에서 겪은 일'을 남겨주세요. 익명으로 전송되며, 다음 업데이트의 이벤트가 될 수 있습니다.</p>
     <textarea id="storyText" rows="3" placeholder="예: 저희 부장님은 진짜로 화분한테…"></textarea>
     <button class="btn" id="storySaveBtn">사연 접수</button>
     <span class="subtle" id="storyDone"></span></div>`;
@@ -1178,8 +1179,16 @@ function bindStoryBox(mode,endKey){
     if(!v){$('#storyDone').textContent=' 내용이 비어 있습니다.';return;}
     SAVE.stories.push({mode,ending:endKey,text:v.slice(0,2000),ts:new Date().toISOString().slice(0,10)});
     saveSave(SAVE);
+    try{
+      const fd=new URLSearchParams();
+      fd.append('entry.574688975',v.slice(0,2000));
+      fd.append('entry.1970698027',mode);
+      fd.append('entry.943080204',endKey);
+      fetch(STORY_FORM,{method:'POST',mode:'no-cors',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd.toString()}).catch(()=>{});
+    }catch(e){}
     ta.value='';
-    $('#storyDone').textContent=' 접수 완료. 소중한 제보는 게임이 됩니다.';
+    $('#storyDone').textContent=' 접수 완료! 사연이 익명으로 전송되었습니다.';
   };
 }
 
