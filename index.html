@@ -1177,19 +1177,33 @@ function bindStoryBox(mode,endKey){
   b.onclick=()=>{
     const ta=$('#storyText'); const v=(ta.value||'').trim();
     if(!v){$('#storyDone').textContent=' 내용이 비어 있습니다.';return;}
-    SAVE.stories.push({mode,ending:endKey,text:v.slice(0,2000),ts:new Date().toISOString().slice(0,10)});
+    const story={mode,ending:endKey,text:v.slice(0,2000),ts:new Date().toISOString().slice(0,10)};
+    SAVE.stories.push(story);
     saveSave(SAVE);
-    try{
-      const fd=new URLSearchParams();
-      fd.append('entry.574688975',v.slice(0,2000));
-      fd.append('entry.1970698027',mode);
-      fd.append('entry.943080204',endKey);
-      fetch(STORY_FORM,{method:'POST',mode:'no-cors',
-        headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd.toString()}).catch(()=>{});
-    }catch(e){}
+    postStory(story).then(ok=>{if(ok){story.sent=true;saveSave(SAVE);}});
     ta.value='';
     $('#storyDone').textContent=' 접수 완료! 사연이 익명으로 전송되었습니다.';
   };
+}
+function postStory(s){
+  try{
+    const fd=new URLSearchParams();
+    fd.append('entry.574688975',s.text);
+    fd.append('entry.1970698027',s.mode||'');
+    fd.append('entry.943080204',s.ending||'');
+    return fetch(STORY_FORM,{method:'POST',mode:'no-cors',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd.toString()})
+      .then(()=>true).catch(()=>false);
+  }catch(e){return Promise.resolve(false);}
+}
+/* 폼 연동 전에 저장된 사연 소급 전송 (전송 성공 시 sent 표시로 중복 방지) */
+function syncPendingStories(){
+  const pending=SAVE.stories.filter(s=>!s.sent&&s.text);
+  if(!pending.length)return;
+  let chain=Promise.resolve();
+  pending.forEach(s=>{
+    chain=chain.then(()=>postStory(s)).then(ok=>{if(ok){s.sent=true;saveSave(SAVE);}});
+  });
 }
 
 /* ============================== 신입 모드 (β) ============================== */
@@ -1525,6 +1539,7 @@ function nbEnd(key){
 }
 
 showTitle();
+syncPendingStories();
 </script>
 </body>
 </html>
