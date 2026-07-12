@@ -205,7 +205,7 @@ hr.thin{border:none;border-top:1px solid var(--line);margin:20px 0}
 /* ============================== 저장 ============================== */
 const SKEY='sinip_v1';
 function loadSave(){
-  const d={runs:0,endings:[],nbEndings:[],stories:[]};
+  const d={runs:0,endings:[],nbEndings:[],stories:[],feedback:[]};
   try{ return Object.assign(d,JSON.parse(localStorage.getItem(SKEY))||{}); }catch(e){ return d; }
 }
 function saveSave(s){ try{ localStorage.setItem(SKEY,JSON.stringify(s)); }catch(e){} }
@@ -823,9 +823,9 @@ function showTitle(){
     </div>
     ${SAVE.nbEndings.length?`<div class="stampboard"><div class="lbl">신입 모드 β — 엔딩 ${SAVE.nbEndings.length} / ${Object.keys(NB_ENDINGS).length}</div>
       <div class="stampgrid">${Object.keys(NB_ENDINGS).map(k=>SAVE.nbEndings.includes(k)?'<div class="slot got">'+NB_ENDINGS[k].t+'</div>':'<div class="slot">미달성</div>').join('')}</div></div>`:''}
-    ${SAVE.stories.length?`<div class="stampboard"><div class="lbl">📮 접수된 사연 — ${SAVE.stories.length}건 (다음 업데이트의 재료)</div>
-      <div class="storylist">${SAVE.stories.slice(-3).reverse().map(s=>'<div class="st"><div class="meta">'+esc(s.ts)+' · '+(s.mode==='newbie'?'신입 모드':'사수 모드')+'</div>'+esc(s.text)+'</div>').join('')}</div>
-      <button class="btn ghostbtn" id="copyStories">사연 전체 복사 (백업용 — 접수 시 자동 전송됩니다)</button></div>`:''}
+    ${(SAVE.stories.length||SAVE.feedback.length)?`<div class="stampboard"><div class="lbl">📮 내가 남긴 것 — 사연 ${SAVE.stories.length}건 · 개선점 ${SAVE.feedback.length}건 (다음 업데이트의 재료)</div>
+      <div class="storylist">${SAVE.stories.slice(-2).reverse().map(s=>'<div class="st"><div class="meta">'+esc(s.ts)+' · 사연 · '+(s.mode==='newbie'?'신입 모드':'사수 모드')+'</div>'+esc(s.text)+'</div>').join('')}${SAVE.feedback.slice(-2).reverse().map(s=>'<div class="st"><div class="meta">'+esc(s.ts)+' · 개선점 · '+(s.mode==='newbie'?'신입 모드':'사수 모드')+'</div>'+esc(s.text)+'</div>').join('')}</div>
+      <button class="btn ghostbtn" id="copyStories">전체 복사 (백업용 — 접수 시 자동 전송됩니다)</button></div>`:''}
     ${allDone?`<div class="meta-tease"><h3>🎉 전 엔딩 달성 — 인사팀에서 공문이 왔습니다</h3>
       <ul><li>🧬 혼합형 신입 — 성격 2개가 섞여 신호가 교란된다</li>
       <li>🏢 국장/대표 모드 — 팀 단위 관리</li></ul>
@@ -835,7 +835,9 @@ function showTitle(){
   $('#nbStartBtn').onclick=()=>{nbNewRun();nbWeek();};
   const cp=$('#copyStories');
   if(cp)cp.onclick=()=>{
-    const txt=SAVE.stories.map(s=>`[${s.ts}/${s.mode}/${s.ending}] ${s.text}`).join('\n');
+    const s1=SAVE.stories.map(s=>`[사연/${s.ts}/${s.mode}/${s.ending}] ${s.text}`);
+    const s2=SAVE.feedback.map(s=>`[개선점/${s.ts}/${s.mode}/${s.ending}] ${s.text}`);
+    const txt=s1.concat(s2).join('\n');
     try{navigator.clipboard.writeText(txt);cp.textContent='복사 완료 — 붙여넣어 공유하세요';}
     catch(e){cp.textContent='복사 실패 — 브라우저 권한을 확인하세요';}
   };
@@ -1279,45 +1281,65 @@ function endGame(key,pre,dirt){
 
 /* ============================== 사연 접수 ============================== */
 const STORY_FORM='https://docs.google.com/forms/d/e/1FAIpQLSevlOXDeTTKySfGJ0HhhFpCwglxkbHcz7BQGPImhstjv65saA/formResponse';
+const STORY_FIELDS={text:'entry.574688975',mode:'entry.1970698027',ending:'entry.943080204'};
+const FEED_FORM='https://docs.google.com/forms/d/e/1FAIpQLSenIFeyN8HGOMwX1j4CM_sWydSmUnMXokkd1XsNGHYm3NlLmg/formResponse';
+const FEED_FIELDS={text:'entry.1516652221',mode:'entry.162403805',ending:'entry.1694758243'};
+
 function storyBoxHtml(){
   return `<div class="storybox"><h3>📮 당신의 이야기를 접수합니다</h3>
     <p class="subtle">플레이하다 떠오른 '실제 회사에서 겪은 일'을 남겨주세요. 익명으로 전송되며, 다음 업데이트의 이벤트가 될 수 있습니다.</p>
     <textarea id="storyText" rows="3" placeholder="예: 저희 부장님은 진짜로 화분한테…"></textarea>
     <button class="btn" id="storySaveBtn">사연 접수</button>
-    <span class="subtle" id="storyDone"></span></div>`;
+    <span class="subtle" id="storyDone"></span></div>
+    <div class="storybox"><h3>🛠 이렇게 바뀌면 좋겠어요</h3>
+    <p class="subtle">게임에 대한 개선점·불편한 점·바라는 점을 남겨주세요. 익명으로 전송되며, 다음 업데이트에 반영됩니다.</p>
+    <textarea id="feedText" rows="3" placeholder="예: 신입 모드가 조금 더 길었으면 / 이 선택지 결과가 애매해요…"></textarea>
+    <button class="btn" id="feedSaveBtn">개선점 접수</button>
+    <span class="subtle" id="feedDone"></span></div>`;
 }
 function bindStoryBox(mode,endKey){
-  const b=$('#storySaveBtn'); if(!b)return;
-  b.onclick=()=>{
+  const sb=$('#storySaveBtn');
+  if(sb)sb.onclick=()=>{
     const ta=$('#storyText'); const v=(ta.value||'').trim();
     if(!v){$('#storyDone').textContent=' 내용이 비어 있습니다.';return;}
-    const story={mode,ending:endKey,text:v.slice(0,2000),ts:new Date().toISOString().slice(0,10)};
-    SAVE.stories.push(story);
-    saveSave(SAVE);
-    postStory(story).then(ok=>{if(ok){story.sent=true;saveSave(SAVE);}});
+    const rec={mode,ending:endKey,text:v.slice(0,2000),ts:new Date().toISOString().slice(0,10)};
+    SAVE.stories.push(rec); saveSave(SAVE);
+    postForm(STORY_FORM,STORY_FIELDS,rec).then(ok=>{if(ok){rec.sent=true;saveSave(SAVE);}});
     ta.value='';
     $('#storyDone').textContent=' 접수 완료! 사연이 익명으로 전송되었습니다.';
   };
+  const fb=$('#feedSaveBtn');
+  if(fb)fb.onclick=()=>{
+    const ta=$('#feedText'); const v=(ta.value||'').trim();
+    if(!v){$('#feedDone').textContent=' 내용이 비어 있습니다.';return;}
+    const rec={mode,ending:endKey,text:v.slice(0,2000),ts:new Date().toISOString().slice(0,10)};
+    SAVE.feedback.push(rec); saveSave(SAVE);
+    postForm(FEED_FORM,FEED_FIELDS,rec).then(ok=>{if(ok){rec.sent=true;saveSave(SAVE);}});
+    ta.value='';
+    $('#feedDone').textContent=' 접수 완료! 소중한 의견 감사합니다.';
+  };
 }
-function postStory(s){
+function postForm(url,fields,rec){
   try{
     const fd=new URLSearchParams();
-    fd.append('entry.574688975',s.text);
-    fd.append('entry.1970698027',s.mode||'');
-    fd.append('entry.943080204',s.ending||'');
-    return fetch(STORY_FORM,{method:'POST',mode:'no-cors',
+    fd.append(fields.text,rec.text);
+    fd.append(fields.mode,rec.mode||'');
+    fd.append(fields.ending,rec.ending||'');
+    return fetch(url,{method:'POST',mode:'no-cors',
       headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd.toString()})
       .then(()=>true).catch(()=>false);
   }catch(e){return Promise.resolve(false);}
 }
-/* 폼 연동 전에 저장된 사연 소급 전송 (전송 성공 시 sent 표시로 중복 방지) */
+/* 폼 연동 전에 저장된 항목 소급 전송 (전송 성공 시 sent 표시로 중복 방지) */
 function syncPendingStories(){
-  const pending=SAVE.stories.filter(s=>!s.sent&&s.text);
-  if(!pending.length)return;
-  let chain=Promise.resolve();
-  pending.forEach(s=>{
-    chain=chain.then(()=>postStory(s)).then(ok=>{if(ok){s.sent=true;saveSave(SAVE);}});
-  });
+  const send=(list,url,fields)=>{
+    let chain=Promise.resolve();
+    (list||[]).filter(s=>!s.sent&&s.text).forEach(s=>{
+      chain=chain.then(()=>postForm(url,fields,s)).then(ok=>{if(ok){s.sent=true;saveSave(SAVE);}});
+    });
+  };
+  send(SAVE.stories,STORY_FORM,STORY_FIELDS);
+  send(SAVE.feedback,FEED_FORM,FEED_FIELDS);
 }
 
 /* ============================== 신입 모드 (β) ============================== */
