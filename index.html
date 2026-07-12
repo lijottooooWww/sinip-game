@@ -186,6 +186,9 @@ hr.thin{border:none;border-top:1px solid var(--line);margin:20px 0}
   background:var(--panel);color:var(--ink);font:inherit;font-size:14.5px;resize:vertical;
 }
 .storybox textarea:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.storybox .btn{margin-top:10px}
+.send-hint{margin:6px 2px 0;font-size:12px;opacity:.85}
+.leave-warn{color:var(--red);font-size:13px;margin:8px 0 0;font-weight:600}
 .storylist{margin-top:10px}
 .storylist .st{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:8px 0;font-size:14px}
 .storylist .st .meta{font-size:12px;color:var(--sub);margin-bottom:2px}
@@ -1275,8 +1278,8 @@ function endGame(key,pre,dirt){
       <button class="btn ghostbtn" id="toTitle">도장판 확인</button>
     </div>`);
   bindStoryBox('mentor',key);
-  $('#again').onclick=()=>{newRun();nextWeek();};
-  $('#toTitle').onclick=showTitle;
+  $('#again').onclick=guardLeave(()=>{newRun();nextWeek();});
+  $('#toTitle').onclick=guardLeave(showTitle);
 }
 
 /* ============================== 사연 접수 ============================== */
@@ -1287,17 +1290,20 @@ const FEED_FIELDS={text:'entry.1516652221',mode:'entry.162403805',ending:'entry.
 
 function storyBoxHtml(){
   return `<div class="storybox"><h3>📮 당신의 이야기를 접수합니다</h3>
-    <p class="subtle">플레이하다 떠오른 '실제 회사에서 겪은 일'을 남겨주세요. 익명으로 전송되며, 다음 업데이트의 이벤트가 될 수 있습니다.</p>
+    <p class="subtle">플레이하다 떠오른 '실제 회사에서 겪은 일'을 남겨주세요. 다음 업데이트의 이벤트가 될 수 있습니다.</p>
     <textarea id="storyText" rows="3" placeholder="예: 저희 부장님은 진짜로 화분한테…"></textarea>
-    <button class="btn" id="storySaveBtn">사연 접수</button>
+    <button class="btn primary" id="storySaveBtn">✉️ 사연 접수하기</button>
+    <p class="subtle send-hint">↑ 이 버튼을 눌러야 익명으로 전송됩니다. 안 누르면 저장되지 않아요.</p>
     <span class="subtle" id="storyDone"></span></div>
     <div class="storybox"><h3>🛠 이렇게 바뀌면 좋겠어요</h3>
-    <p class="subtle">게임에 대한 개선점·불편한 점·바라는 점을 남겨주세요. 익명으로 전송되며, 다음 업데이트에 반영됩니다.</p>
+    <p class="subtle">게임에 대한 개선점·불편한 점·바라는 점을 남겨주세요. 다음 업데이트에 반영됩니다.</p>
     <textarea id="feedText" rows="3" placeholder="예: 신입 모드가 조금 더 길었으면 / 이 선택지 결과가 애매해요…"></textarea>
-    <button class="btn" id="feedSaveBtn">개선점 접수</button>
+    <button class="btn primary" id="feedSaveBtn">✉️ 개선점 접수하기</button>
+    <p class="subtle send-hint">↑ 이 버튼을 눌러야 익명으로 전송됩니다. 안 누르면 저장되지 않아요.</p>
     <span class="subtle" id="feedDone"></span></div>`;
 }
 function bindStoryBox(mode,endKey){
+  guardLeave._armed=false;
   const sb=$('#storySaveBtn');
   if(sb)sb.onclick=()=>{
     const ta=$('#storyText'); const v=(ta.value||'').trim();
@@ -1317,6 +1323,29 @@ function bindStoryBox(mode,endKey){
     postForm(FEED_FORM,FEED_FIELDS,rec).then(ok=>{if(ok){rec.sent=true;saveSave(SAVE);}});
     ta.value='';
     $('#feedDone').textContent=' 접수 완료! 소중한 의견 감사합니다.';
+  };
+}
+/* 텍스트를 써놓고 접수 버튼을 안 누른 채 화면을 뜨려 하면 한 번 잡아준다 */
+function hasUnsentText(){
+  const a=$('#storyText'), b=$('#feedText');
+  return (a&&(a.value||'').trim())||(b&&(b.value||'').trim());
+}
+function guardLeave(fn){
+  return ()=>{
+    if(hasUnsentText()&&!guardLeave._armed){
+      guardLeave._armed=true;
+      let warn=$('#leaveWarn');
+      if(!warn){
+        warn=document.createElement('div');
+        warn.id='leaveWarn'; warn.className='leave-warn';
+        const anchor=$('#again');
+        anchor.parentNode.insertBefore(warn,anchor);
+      }
+      warn.textContent='✏️ 아직 접수 안 한 내용이 있어요. 위의 "접수하기" 버튼을 눌러주세요. 그냥 넘어가려면 한 번 더 누르세요.';
+      return;
+    }
+    guardLeave._armed=false;
+    fn();
   };
 }
 function postForm(url,fields,rec){
@@ -1688,8 +1717,8 @@ function nbEnd(key){
       <button class="btn ghostbtn" id="toTitle">타이틀로</button>
     </div>`);
   bindStoryBox('newbie',key);
-  $('#again').onclick=()=>{nbNewRun();nbWeek();};
-  $('#toTitle').onclick=showTitle;
+  $('#again').onclick=guardLeave(()=>{nbNewRun();nbWeek();});
+  $('#toTitle').onclick=guardLeave(showTitle);
 }
 
 showTitle();
